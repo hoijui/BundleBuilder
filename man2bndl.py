@@ -12,6 +12,7 @@ and all the files it links to.
 '''
 
 import os
+import sys
 import re
 import rdflib
 from rdflib.namespace import DC, DCTERMS, DOAP, FOAF, SKOS, OWL, RDF, RDFS, VOID, XMLNS, XSD
@@ -22,6 +23,7 @@ import shutil
 import hashlib
 import requests
 from urllib.parse import urlparse
+import validators
 
 OKH = rdflib.Namespace('https://github.com/OPEN-NEXT/OKH-LOSH/raw/master/OKH-LOSH.ttl#')
 # OBO = rdflib.Namespace('http://purl.obolibrary.org/obo/')
@@ -123,6 +125,16 @@ def get_filename_from_url(url):
     name = path[path.rfind('/')+1:]
     return name or None
 
+def proj2manif_url(manifest):
+    query = { 'projectUrl': manifest }
+    res = requests.get(
+        'https://losh-rdf.internetofproduction.org/projectToManifestUrl',
+        params=query)
+    if res.status_code == 200:
+        return res.json()['rdfManifestUrl']
+    else:
+        return None
+
 def url_to_path(url):
     return url.replace('https://', '').replace('/', '_')
 
@@ -200,7 +212,7 @@ class BundleCreator:
                 print(f"\tsubject:        '{s}'")
             print(f"\tokh:permaURL:   '{perma_url}'")
             print(f"\t...")
-            
+
             main_file = os.path.join(files_dir, url_to_path(perma_url))
             hashed_file = os.path.join(hashed_files_dir, url_hash)
             url_file = os.path.join(url_files_dir, url_to_path(perma_url))
@@ -261,15 +273,20 @@ def cli(manifest, output, dry, debug):
 
     is_zip = output.endswith(".zip")
 
-    # Run as a CLI script
     if debug:
         enable_debug()
 
-    if not os.path.exists(manifest):
+    if validators.url(manifest):
+        if not manifest.endswith('.ttl'):
+            print(f'Fetching manifest URL ...')
+            manifest = proj2manif_url(manifest)
+            if manifest is None:
+                print(f'Failed to fetch manifest URL.')
+                sys.exit(1)
+        print(f'Downloading "{manifest}" ...')
         okh_ttl_tmp = tempfile.NamedTemporaryFile(prefix='okh', suffix='.ttl')
         okh_ttl_tmp_name = okh_ttl_tmp.name
         okh_ttl_tmp.close()
-        print(f'Not an existing, local (mainifest) file: "{manifest}"; interpreting it as a URL ...')
         download(manifest, okh_ttl_tmp_name)
         manifest = okh_ttl_tmp_name
 
