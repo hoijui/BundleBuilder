@@ -12,40 +12,19 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check-out repository
         uses: actions/checkout@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Package Application
+        uses: JackMcKew/pyinstaller-action-windows@main
         with:
-          python-version: '3.10'
-          architecture: 'x64'
-          cache: 'pip'
-          cache-dependency-path: |
-            **/requirements*.txt
+          path: .
 
-      - name: Install Dependencies
-        run: |
-          pip install -r requirements.txt
-
-      - name: Build Executable
-        uses: Nuitka/Nuitka-Action@v0.4
+      - uses: actions/upload-artifact@v2
         with:
-          script-name: man2bndl.py
-          onefile: true
+          name: WinInstaller
+          path: dist/windows
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ runner.os }} Build
-          path: |
-            build/*.exe
-            build/*.bin
-            build/*.app/**/*
