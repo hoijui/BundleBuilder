@@ -2,7 +2,10 @@
 #
 # SPDX-License-Identifier: Unlicense
 
+# Generated with: `pipreqs .`
+
 # Python dependencies (for man2bndl)
 click==8.0.3
 rdflib==6.2.0
 requests==2.27.1
+validators==0.20.0
