@@ -14,6 +14,7 @@ and all the files it links to.
 import os
 import sys
 import re
+import tkinter as tk
 import logging
 import tempfile
 import shutil
@@ -24,6 +25,7 @@ import rdflib
 from rdflib.namespace import DC, DCTERMS, DOAP, FOAF, SKOS, OWL, RDF, RDFS, VOID, XMLNS, XSD
 import requests
 import validators
+import Pmw
 
 OKH = rdflib.Namespace('https://github.com/OPEN-NEXT/OKH-LOSH/raw/master/OKH-LOSH.ttl#')
 # OBO = rdflib.Namespace('http://purl.obolibrary.org/obo/')
@@ -157,6 +159,90 @@ def create_link(src, dst):
     # create the link
     os.symlink(rel_path_src, dst)
 
+def args_dialog(manifest, dry):
+    window = tk.Tk() # Create the object
+    window.overrideredirect(1) # Avoid it appearing and then disappearing quickly
+    window.title("IoPA OKH BundleBuilder")
+
+    tooltip = Pmw.Balloon(window)
+
+    ot_var = tk.IntVar()
+    ot_var.set(2)
+
+    tt_man = "Manifest file/URL or Project web hosting URL"
+    l_man = tk.Label(window, text="Manifest")
+    tooltip.bind(l_man, tt_man)
+    l_man.grid(column=0, row=0)
+    t_man = tk.Entry(window, width=50)
+    t_man.grid(column=1, row=0)
+    tooltip.bind(t_man, tt_man)
+    t_man.focus()
+
+    tt_out = 'File-system path to the output bundle directory or ZIP file'
+    l_out = tk.Label(window, text="Bundle")
+    tooltip.bind(l_out, tt_out)
+    l_out.grid(column=0, row=3)
+    t_out = tk.Entry(window, width=50)
+    t_out.grid(column=1, row=3)
+    tooltip.bind(t_out, tt_out)
+
+    cbs_dry  = tk.BooleanVar()
+    cbs_dry.set(dry)
+    cb_dry = tk.Checkbutton(window, text='Choose', var=cbs_dry)
+    cb_dry.grid(column=0, row=4)
+
+    if manifest is not None:
+        t_man.insert(tk.INSERT, manifest)
+        t_out.focus()
+
+    def bndl():
+        manifest = t_man.get()
+        output = t_out.get()
+        dry = cbs_dry.get()
+        window.destroy()
+        bundle(manifest, output, dry)
+
+    def cls():
+        window.destroy()
+
+    def ot_change():
+        out = t_out.get()
+        if ot_var.get() == 1: # changed form ZIP to dir
+            out = re.sub(r'\.zip^', '', out)
+        else: # changed from dir to ZIP
+            out = out + '.zip'
+        t_out.delete(0, tk.END)
+        t_out.insert(tk.INSERT, out)
+        window.destroy()
+
+    tt_ot = 'Whether to bundle into a directory or into a ZIP file'
+    l_ot = tk.Label(window, text="Type")
+    tooltip.bind(l_ot, tt_ot)
+    l_ot.grid(column=0, row=1)
+
+    ot_frm = tk.Frame(master=window, width=200, height=100)
+    tooltip.bind(ot_frm, tt_ot)
+    ot_frm.grid(column=1, row=1)
+
+    ot_dir = tk.Radiobutton(ot_frm, text='dir', value=1, command=ot_change, variable=ot_var)
+    ot_dir.grid(column=0, row=0)
+
+    ot_zip = tk.Radiobutton(ot_frm, text='ZIP', value=2, command=ot_change, variable=ot_var)
+    ot_zip.grid(column=0, row=1)
+
+    btn_frm = tk.Frame(master=window, width=200, height=100)
+    btn_frm.grid(column=0, row=4)
+
+    b_bndl = tk.Button(btn_frm, text="Bundle", command=bndl)
+    b_bndl.grid(column=0, row=0)
+
+    b_cls = tk.Button(btn_frm, text="Close", command=cls)
+    b_cls.grid(column=1, row=0)
+
+    window.mainloop()
+
+    return (manifest, None)
+
 class BundleCreator:
 
     def __init__(self, manifest, output, is_zip, dry):
@@ -263,18 +349,7 @@ class BundleCreator:
 
         print('done.')
 
-@click.command(context_settings=CONTEXT_SETTINGS)
-@click.argument('manifest', envvar='MANIFEST')#, help='Path to the OKH LOSH RDF/Turtle manifest file (input), e.g. "project.ttl"')
-@click.argument('output', envvar='OUTPUT', type=click.Path(exists=False))#, help='Path to the output dir or ZIP file, eg. "bundle/" or "bundle.zip". This dir/file may not yet exist!')
-@click.option('-d', '--dry', default=False, is_flag=True)
-@click.option('-d', '--debug', default=False, is_flag=True)
-@click.version_option("0.1.0")
-def cli(manifest, output, dry, debug):
-
-    is_zip = output.endswith(".zip")
-
-    if debug:
-        enable_debug()
+def bundle(manifest, output, dry):
 
     if validators.url(manifest):
         if not manifest.endswith('.ttl'):
@@ -290,8 +365,26 @@ def cli(manifest, output, dry, debug):
         download(manifest, okh_ttl_tmp_name)
         manifest = okh_ttl_tmp_name
 
+    is_zip = output.endswith(".zip")
+
     creator = BundleCreator(manifest, output, is_zip, dry)
     creator.create()
+
+@click.command(context_settings=CONTEXT_SETTINGS)
+@click.argument('manifest', envvar='MANIFEST', required=False)#, help='Path to the OKH LOSH RDF/Turtle manifest file (input), e.g. "project.ttl"')
+@click.argument('output', envvar='OUTPUT', required=False, type=click.Path(exists=False))#, help='Path to the output dir or ZIP file, eg. "bundle/" or "bundle.zip". This dir/file may not yet exist!')
+@click.option('-d', '--dry', default=False, is_flag=True)
+@click.option('-d', '--debug', default=False, is_flag=True)
+@click.version_option("0.1.0")
+def cli(manifest, output, dry, debug):
+
+    if debug:
+        enable_debug()
+
+    if output is None:
+        args_dialog(manifest, dry)
+    else:
+        bundle(manifest, output, dry)
 
 if __name__ == "__main__":
     cli()

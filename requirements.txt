@@ -6,6 +6,7 @@
 
 # Python dependencies (for man2bndl)
 click==8.0.3
+Pmw==2.1.1
 rdflib==6.2.0
 requests==2.27.1
 validators==0.20.0
