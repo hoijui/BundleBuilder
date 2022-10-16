@@ -14,15 +14,15 @@ and all the files it links to.
 import os
 import sys
 import re
-import rdflib
-from rdflib.namespace import DC, DCTERMS, DOAP, FOAF, SKOS, OWL, RDF, RDFS, VOID, XMLNS, XSD
-import click
 import logging
 import tempfile
 import shutil
 import hashlib
-import requests
 from urllib.parse import urlparse
+import click
+import rdflib
+from rdflib.namespace import DC, DCTERMS, DOAP, FOAF, SKOS, OWL, RDF, RDFS, VOID, XMLNS, XSD
+import requests
 import validators
 
 OKH = rdflib.Namespace('https://github.com/OPEN-NEXT/OKH-LOSH/raw/master/OKH-LOSH.ttl#')
